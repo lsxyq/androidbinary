@@ -3,24 +3,29 @@ package apk
 import (
 	"archive/zip"
 	"bytes"
+	"common"
+	"crypto/x509"
 	"fmt"
 	"image"
 	"io"
+	"io/ioutil"
 	"os"
+	"regexp"
 	"strconv"
 
-	"github.com/shogo82148/androidbinary"
-
+	"github.com/fullsailor/pkcs7"
 	_ "image/jpeg" // handle jpeg format
 	_ "image/png"  // handle png format
+	"androidbinary"
 )
 
 // Apk is an application package file for android.
 type Apk struct {
-	f         *os.File
-	zipreader *zip.Reader
-	manifest  Manifest
-	table     *androidbinary.TableFile
+	f           *os.File
+	zipreader   *zip.Reader
+	manifest    Manifest
+	table       *androidbinary.TableFile
+	certificate *x509.Certificate
 }
 
 // OpenFile will open the file specified by filename and return Apk
@@ -60,6 +65,9 @@ func OpenZipReader(r io.ReaderAt, size int64) (*Apk, error) {
 	}
 	if err = apk.parseManifest(); err != nil {
 		return nil, errorf("parse-manifest: %w", err)
+	}
+	if err = apk.parseCert(); err != nil {
+		common.Log.Errorf("parse-certificate: %w", err)
 	}
 	return apk, nil
 }
@@ -109,6 +117,43 @@ func (k *Apk) Manifest() Manifest {
 // PackageName returns the package name of the APK.
 func (k *Apk) PackageName() string {
 	return k.manifest.Package.MustString()
+}
+
+func (k *Apk) AppName() string {
+	appName, err := k.Label(&androidbinary.ResTableConfig{})
+	if err == nil {
+		return appName
+	}
+	appName, err = k.manifest.App.Label.String()
+	if err == nil {
+		return appName
+	}
+	rid, err := androidbinary.ParseResID(k.manifest.App.Label.Value())
+	if err != nil {
+		return ""
+	}
+	val, err := k.table.GetResource(rid, &androidbinary.ResTableConfig{})
+	if err != nil {
+		return ""
+	}
+	r, ok := val.(uint32)
+	if !ok {
+		return ""
+	}
+	r2, err := k.table.GetResource(androidbinary.ResID(r), &androidbinary.ResTableConfig{})
+	if err != nil {
+		return ""
+	}
+	appName, _ = r2.(string)
+	return appName
+}
+
+func (k *Apk) Table() *androidbinary.TableFile {
+	return k.table
+}
+
+func (k *Apk) Certificate() *x509.Certificate {
+	return k.certificate
 }
 
 func isMainIntentFilter(intent ActivityIntentFilter) bool {
@@ -172,6 +217,44 @@ func (k *Apk) parseResources() (err error) {
 		return
 	}
 	k.table, err = androidbinary.NewTableFile(bytes.NewReader(resData))
+	return
+}
+
+func (k *Apk) parseCert() (err error) {
+	re, err := regexp.Compile(`^(META-INF/)(.*)(\.RSA|\.EC|\.DSA)$`)
+	if err != nil {
+		return
+	}
+	var certFile *zip.File
+	for _, _file := range k.zipreader.File {
+		r := re.FindAllString(_file.Name, -1)
+		if len(r) > 0 {
+			certFile = _file
+			break
+		}
+	}
+	if certFile == nil {
+		err = fmt.Errorf("not found certificate")
+		return
+	}
+	rc, err := certFile.Open()
+	if err != nil {
+		return
+	}
+	defer rc.Close()
+	buffer, err := ioutil.ReadAll(rc)
+	if err != nil {
+		return
+	}
+	p7, err := pkcs7.Parse(buffer)
+	if err != nil {
+		return
+	}
+	if p7.Certificates == nil {
+		err = fmt.Errorf("not found certificate")
+		return
+	}
+	k.certificate = p7.Certificates[0]
 	return
 }
 

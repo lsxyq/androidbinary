@@ -1,8 +1,6 @@
 package apk
 
-import (
-	"github.com/shogo82148/androidbinary"
-)
+import "androidbinary"
 
 // Instrumentation is an application instrumentation code.
 type Instrumentation struct {
@@ -50,6 +48,9 @@ type MetaData struct {
 	Name  androidbinary.String `xml:"http://schemas.android.com/apk/res/android name,attr"`
 	Value androidbinary.String `xml:"http://schemas.android.com/apk/res/android value,attr"`
 }
+type Process struct {
+	Name androidbinary.String `xml:"http://schemas.android.com/apk/res/android process,attr"`
+}
 
 // Application is an application in an APK.
 type Application struct {
@@ -70,7 +71,6 @@ type Application struct {
 	Name                  androidbinary.String `xml:"http://schemas.android.com/apk/res/android name,attr"`
 	Permission            androidbinary.String `xml:"http://schemas.android.com/apk/res/android permission,attr"`
 	Persistent            androidbinary.Bool   `xml:"http://schemas.android.com/apk/res/android persistent,attr"`
-	Process               androidbinary.String `xml:"http://schemas.android.com/apk/res/android process,attr"`
 	RestoreAnyVersion     androidbinary.Bool   `xml:"http://schemas.android.com/apk/res/android restoreAnyVersion,attr"`
 	RequiredAccountType   androidbinary.String `xml:"http://schemas.android.com/apk/res/android requiredAccountType,attr"`
 	RestrictedAccountType androidbinary.String `xml:"http://schemas.android.com/apk/res/android restrictedAccountType,attr"`
@@ -80,6 +80,7 @@ type Application struct {
 	Theme                 androidbinary.String `xml:"http://schemas.android.com/apk/res/android theme,attr"`
 	UIOptions             androidbinary.String `xml:"http://schemas.android.com/apk/res/android uiOptions,attr"`
 	VMSafeMode            androidbinary.Bool   `xml:"http://schemas.android.com/apk/res/android vmSafeMode,attr"`
+	Processes             []Process            `xml:"service"`
 	Activities            []AppActivity        `xml:"activity"`
 	ActivityAliases       []AppActivityAlias   `xml:"activity-alias"`
 	MetaData              []MetaData           `xml:"meta-data"`
@@ -92,19 +93,17 @@ type UsesSDK struct {
 	Max    androidbinary.Int32 `xml:"http://schemas.android.com/apk/res/android maxSdkVersion,attr"`
 }
 
-// UsesPermission is user grant the system permission.
-type UsesPermission struct {
+type Permission struct {
 	Name androidbinary.String `xml:"http://schemas.android.com/apk/res/android name,attr"`
-	Max  androidbinary.Int32  `xml:"http://schemas.android.com/apk/res/android maxSdkVersion,attr"`
 }
 
 // Manifest is a manifest of an APK.
 type Manifest struct {
-	Package         androidbinary.String `xml:"package,attr"`
-	VersionCode     androidbinary.Int32  `xml:"http://schemas.android.com/apk/res/android versionCode,attr"`
-	VersionName     androidbinary.String `xml:"http://schemas.android.com/apk/res/android versionName,attr"`
-	App             Application          `xml:"application"`
-	Instrument      Instrumentation      `xml:"instrumentation"`
-	SDK             UsesSDK              `xml:"uses-sdk"`
-	UsesPermissions []UsesPermission     `xml:"uses-permission"`
+	Package     androidbinary.String `xml:"package,attr"`
+	VersionCode androidbinary.Int32  `xml:"http://schemas.android.com/apk/res/android versionCode,attr"`
+	VersionName androidbinary.String `xml:"http://schemas.android.com/apk/res/android versionName,attr"`
+	Permissions []Permission         `xml:"uses-permission"`
+	App         Application          `xml:"application"`
+	Instrument  Instrumentation      `xml:"instrumentation"`
+	SDK         UsesSDK              `xml:"uses-sdk"`
 }

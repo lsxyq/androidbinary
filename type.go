@@ -325,3 +325,7 @@ func (v String) MustString() string {
 	}
 	return ret
 }
+
+func (v String) Value() string {
+	return v.value
+}

@@ -173,7 +173,7 @@ func (f *XMLFile) readEndNamespace(sr *io.SectionReader) error {
 	if err := binary.Read(sr, binary.LittleEndian, namespace); err != nil {
 		return err
 	}
-	delete(f.namespaces, namespace.URI)
+	//delete(f.namespaces, namespace.URI)
 	return nil
 }
 
@@ -212,6 +212,7 @@ func (f *XMLFile) readStartElement(sr *io.SectionReader) error {
 	}
 
 	// process attributes
+
 	offset := int64(ext.AttributeStart + header.Header.HeaderSize)
 	for i := 0; i < int(ext.AttributeCount); i++ {
 		if _, err := sr.Seek(offset, io.SeekStart); err != nil {
@@ -219,7 +220,6 @@ func (f *XMLFile) readStartElement(sr *io.SectionReader) error {
 		}
 		attr := new(ResXMLTreeAttribute)
 		binary.Read(sr, binary.LittleEndian, attr)
-
 		var value string
 		if attr.RawValue != NilResStringPoolRef {
 			value = f.GetString(attr.RawValue)
@@ -244,7 +244,6 @@ func (f *XMLFile) readStartElement(sr *io.SectionReader) error {
 				value = fmt.Sprintf("@0x%08X", data)
 			}
 		}
-
 		fmt.Fprintf(&f.xmlBuffer, " %s=\"", f.addNamespacePrefix(attr.NS, attr.Name))
 		xml.Escape(&f.xmlBuffer, []byte(value))
 		fmt.Fprint(&f.xmlBuffer, "\"")
